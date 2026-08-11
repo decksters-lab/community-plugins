@@ -64,7 +64,7 @@ found a way to make this instant.
 
 ## Requirements
 
-- `hyprpicker` — for the screen color-picker button. Everything else works without it.
+- `hyprpicker` 
 
 
 ## Notes
