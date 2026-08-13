@@ -79,7 +79,7 @@ local statusText = ""
 local pendingPickRole = nil -- role.key waiting on a hyprpicker screen-sample across a close/reopen
 local showLoadPicker = false
 local loadOptions = {} -- list of saved palette names (without .json), for the Load picker
-local loadSelectedIndex = 1
+local confirmDeleteName = nil -- name pending a second confirming click before it's actually deleted
 
 local render -- forward decl
 local applyPreview -- forward decl (revertChanges/loadPaletteByName call this before its own
@@ -514,7 +514,6 @@ local function refreshLoadOptions()
     end
   end
   table.sort(loadOptions)
-  loadSelectedIndex = 1
 end
 
 local function loadPaletteByName(name)
@@ -537,7 +536,6 @@ local function loadPaletteByName(name)
   if previewActive then
     applyPreview()
   end
-  render()
 end
 
 -- ── Preview ─────────────────────────────────────────────────────────────────
@@ -787,27 +785,52 @@ render = function()
       (#loadOptions > 0 and ui.scroll({ height = 260, flexGrow = 1, gap = 6 }, (function()
         local rows = {}
         for _, name in ipairs(loadOptions) do
-          table.insert(rows, ui.row({ align = "center", justify = "space_between", gap = 8 }, {
-            ui.label({ text = name, fontSize = 13, color = "on_surface", flexGrow = 1 }),
-            ui.button({
-              text = "Load",
-              glyph = "folder-open",
-              onClick = function()
-                loadPaletteByName(name)
-                showLoadPicker = false
-                render()
-              end,
-            }),
-            ui.button({
-              glyph = "trash-2",
-              onClick = function()
-                local file = palettesDir() .. "/" .. name .. ".json"
-                noctalia.removeFile(file)
-                refreshLoadOptions()
-                render()
-              end,
-            }),
-          }))
+          if confirmDeleteName == name then
+            -- Second step of a two-click delete: the row swaps to an
+            -- explicit Confirm/Cancel pair so an accidental misclick on the
+            -- original trash icon can never destroy a saved palette outright.
+            table.insert(rows, ui.row({ align = "center", justify = "space_between", gap = 8 }, {
+              ui.label({ text = "Delete \"" .. name .. "\"?", fontSize = 13, color = "on_surface", flexGrow = 1 }),
+              ui.button({
+                text = "Confirm",
+                glyph = "trash-2",
+                onClick = function()
+                  local file = palettesDir() .. "/" .. name .. ".json"
+                  noctalia.removeFile(file)
+                  confirmDeleteName = nil
+                  refreshLoadOptions()
+                  render()
+                end,
+              }),
+              ui.button({
+                text = "Cancel",
+                onClick = function()
+                  confirmDeleteName = nil
+                  render()
+                end,
+              }),
+            }))
+          else
+            table.insert(rows, ui.row({ align = "center", justify = "space_between", gap = 8 }, {
+              ui.label({ text = name, fontSize = 13, color = "on_surface", flexGrow = 1 }),
+              ui.button({
+                text = "Load",
+                glyph = "folder-open",
+                onClick = function()
+                  loadPaletteByName(name)
+                  showLoadPicker = false
+                  render()
+                end,
+              }),
+              ui.button({
+                glyph = "trash-2",
+                onClick = function()
+                  confirmDeleteName = name
+                  render()
+                end,
+              }),
+            }))
+          end
         end
         return rows
       end)()) or ui.label({
