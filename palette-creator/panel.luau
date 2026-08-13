@@ -82,6 +82,9 @@ local loadOptions = {} -- list of saved palette names (without .json), for the L
 local loadSelectedIndex = 1
 
 local render -- forward decl
+local applyPreview -- forward decl (revertChanges/loadPaletteByName call this before its own
+  -- definition further down; without a forward decl those calls would resolve
+  -- to a nil global instead of this local function)
 
 -- ── Color math (port of the v4 QML HSV helpers) ───────────────────────────
 
@@ -161,6 +164,20 @@ local function sanitizeHex(hex)
     clean = clean:sub(1, 6)
   end
   return "#" .. clean
+end
+
+-- Restrict a user-typed palette name down to a safe filesystem basename
+-- before it's ever used to build a path or passed to another process: no
+-- "/", no ".." segments, and only characters we know are safe. Without this,
+-- a name like "../../.config/foo" could write outside palettesDir(), and
+-- shell metacharacters in the name could be interpreted when passed to
+-- another command.
+local function sanitizeName(raw)
+  local name = noctalia.string.trim(tostring(raw or ""))
+  name = name:gsub("[/\\]", "")
+  name = name:gsub("%.%.", "")
+  name = name:gsub("[^%w %-_%(%)]", "")
+  return noctalia.string.trim(name)
 end
 
 -- Derive a full terminal ANSI palette from the MD3 roles — same approach the
@@ -520,11 +537,12 @@ local function loadPaletteByName(name)
   if previewActive then
     applyPreview()
   end
+  render()
 end
 
 -- ── Preview ─────────────────────────────────────────────────────────────────
 
-local function applyPreview()
+applyPreview = function()
   if not previewActive or not scheme then
     return
   end
@@ -621,12 +639,13 @@ end
 -- ── Save ─────────────────────────────────────────────────────────────────
 
 local function saveScheme()
-  local name = noctalia.string.trim(schemeName)
+  local name = sanitizeName(schemeName)
   if name == "" or not scheme then
     statusText = "Enter a name before saving."
     render()
     return
   end
+  schemeName = name
 
   local payload = composePayload(scheme)
 
@@ -651,7 +670,9 @@ local function saveScheme()
   end
 
   -- One-click apply, same as v4: saving switches the active palette to it.
-  noctalia.runAsync(("noctalia msg color-scheme-set custom %s"):format(name))
+  -- Passed as an argv table (not a formatted command string) so an unusual
+  -- name can never be reinterpreted by a shell.
+  noctalia.runAsync({ "noctalia", "msg", "color-scheme-set", "custom", name })
   noctalia.notify("Palette Creator", "Saved and applied \"" .. name .. "\"")
 
   previewActive = false
@@ -752,41 +773,47 @@ render = function()
     }),
 
     -- Role list, or the Load picker when it's open
-    (showLoadPicker and ui.column({ gap = 12 }, {
-      ui.label({ text = "Load a saved palette", fontWeight = "bold", color = "on_surface" }),
-      (#loadOptions > 0 and ui.select({
-        key = "load-select",
-        options = loadOptions,
-        selectedIndex = loadSelectedIndex,
-        onChange = function(index)
-          loadSelectedIndex = index
-        end,
-      }) or ui.label({
-        text = "No saved palettes found in ~/.config/noctalia/palettes.",
-        color = "on_surface_variant", fontSize = 12,
-      })),
-      ui.row({ gap = 8 }, {
+    (showLoadPicker and ui.column({ flexGrow = 1, gap = 12 }, {
+      ui.row({ align = "center", justify = "space_between" }, {
+        ui.label({ text = "Saved Palettes", fontWeight = "bold", color = "on_surface" }),
         ui.button({
-          text = "Load",
-          glyph = "device-floppy",
-          enabled = #loadOptions > 0,
-          onClick = function()
-            local name = loadOptions[loadSelectedIndex]
-            if name then
-              loadPaletteByName(name)
-            end
-            showLoadPicker = false
-            render()
-          end,
-        }),
-        ui.button({
-          text = "Cancel",
+          text = "Close",
           onClick = function()
             showLoadPicker = false
             render()
           end,
         }),
       }),
+      (#loadOptions > 0 and ui.scroll({ height = 260, flexGrow = 1, gap = 6 }, (function()
+        local rows = {}
+        for _, name in ipairs(loadOptions) do
+          table.insert(rows, ui.row({ align = "center", justify = "space_between", gap = 8 }, {
+            ui.label({ text = name, fontSize = 13, color = "on_surface", flexGrow = 1 }),
+            ui.button({
+              text = "Load",
+              glyph = "folder-open",
+              onClick = function()
+                loadPaletteByName(name)
+                showLoadPicker = false
+                render()
+              end,
+            }),
+            ui.button({
+              glyph = "trash-2",
+              onClick = function()
+                local file = palettesDir() .. "/" .. name .. ".json"
+                noctalia.removeFile(file)
+                refreshLoadOptions()
+                render()
+              end,
+            }),
+          }))
+        end
+        return rows
+      end)()) or ui.label({
+        text = "No saved palettes found in ~/.config/noctalia/palettes.",
+        color = "on_surface_variant", fontSize = 12,
+      })),
     }) or ui.scroll({ flexGrow = 1, gap = 8 }, roleRows)),
 
     -- Status line
