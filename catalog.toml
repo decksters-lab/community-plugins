@@ -926,15 +926,15 @@ tags = ["launcher", "development", "productivity"]
 [[plugin]]
 id = "yocraft/battery-widget"
 name = "Battery Widget"
-version = "1.0.1"
-updated_at = 1785684850
+version = "2.0.1"
+updated_at = 1786589080
 added_at = 1785554104
 author = "yocraft"
 license = "MIT"
 icon = "battery"
 description = "Desktop/Lockscreen widget to show battery."
 deprecated = false
-plugin_api = 19
+plugin_api = 3
 tags = ["desktop", "hardware", "system", "utility"]
 
 [[plugin]]
@@ -1210,8 +1210,8 @@ tags = ["ai", "productivity", "development", "network", "bar", "panel"]
 [[plugin]]
 id = "weinguyen/procmon"
 name = "Process Monitor"
-version = "0.4.0"
-updated_at = 1786298101
+version = "0.5.0"
+updated_at = 1786588915
 added_at = 1786218032
 author = "weinguyen"
 license = "MIT"
@@ -1294,15 +1294,21 @@ tags = ["network", "utility", "bar", "panel", "service", "launcher"]
 [[plugin]]
 id = "weinguyen/opencode-companion"
 name = "OpenCode Companion"
-version = "0.1.0"
-updated_at = 1786297431
+version = "0.2.0"
+updated_at = 1786542553
 added_at = 1786297431
 author = "weinguyen"
 license = "MIT"
 icon = "code-circle"
 description = "Integrate OpenCode AI agent directly into Noctalia bar with native chat panel, session management, and MCP status."
-plugin_api = 3
+plugin_api = 21
 tags = ["ai", "productivity", "development", "bar", "panel"]
+
+[[plugin.release]]
+plugin_api = 3
+version = "0.1.0"
+updated_at = 1786297431
+rev = "e77d7ef7fbfa7d909e03966e42690a8561f1b190"
 
 [[plugin]]
 id = "nilsonlinux/link-ip-monitor"
@@ -1355,3 +1361,16 @@ icon = "bulb"
 description = "Turn the ThinkPad lid logo LED on or off."
 plugin_api = 3
 tags = ["bar", "hardware"]
+
+[[plugin]]
+id = "mdj2812/mihomo-control"
+name = "Mihomo Control"
+version = "0.1.0"
+updated_at = 1786541657
+added_at = 1786541657
+author = "mdj2812"
+license = "MIT"
+icon = "cat"
+description = "Monitor and control Mihomo (Clash Meta) — live traffic, proxy mode, group selection, and connections, local or remote."
+plugin_api = 9
+tags = ["network", "indicator", "utility", "bar", "panel", "service", "shortcut"]
