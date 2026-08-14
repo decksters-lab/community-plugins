@@ -167,11 +167,7 @@ local function sanitizeHex(hex)
 end
 
 -- Restrict a user-typed palette name down to a safe filesystem basename
--- before it's ever used to build a path or passed to another process: no
--- "/", no ".." segments, and only characters we know are safe. Without this,
--- a name like "../../.config/foo" could write outside palettesDir(), and
--- shell metacharacters in the name could be interpreted when passed to
--- another command.
+-- before it's used in a path or passed to another process.
 local function sanitizeName(raw)
   local name = noctalia.string.trim(tostring(raw or ""))
   name = name:gsub("[/\\]", "")
@@ -437,7 +433,10 @@ local function seedFromActivePalette(onDone)
 
     -- Fall back to the old path: only works when source = "custom", and
     -- only until the snapshot template above is set up (see README).
-    if origSourceKind == "custom" and origSourceValue then
+    -- origSourceValue must be sanitized before use, same as the Save name.
+    if origSourceKind == "custom" and origSourceValue
+        and not origSourceValue:find("[/\\]")
+        and not origSourceValue:find("%.%.") then
       local raw2 = noctalia.readFile(palettesDir() .. "/" .. origSourceValue .. ".json")
       if raw2 then
         local decoded2 = noctalia.json.decode(raw2)
@@ -578,7 +577,9 @@ local function stopPreview()
   end
   previewActive = false
   if origSourceKind and origSourceValue then
-    noctalia.runAsync(("noctalia msg color-scheme-set %s %s"):format(origSourceKind, origSourceValue))
+    -- Argv form, not a formatted shell string — origSourceValue is
+    -- untrusted, same as the Save name.
+    noctalia.runAsync({ "noctalia", "msg", "color-scheme-set", origSourceKind, origSourceValue })
   end
   render()
 end
@@ -668,8 +669,7 @@ local function saveScheme()
   end
 
   -- One-click apply, same as v4: saving switches the active palette to it.
-  -- Passed as an argv table (not a formatted command string) so an unusual
-  -- name can never be reinterpreted by a shell.
+  -- Argv form so the name can't be reinterpreted by a shell.
   noctalia.runAsync({ "noctalia", "msg", "color-scheme-set", "custom", name })
   noctalia.notify("Palette Creator", "Saved and applied \"" .. name .. "\"")
 
