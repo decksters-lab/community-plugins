@@ -44,6 +44,10 @@
       "stopping_title": "Stopping"
     }
   },
+  "shortcut": {
+    "active": "Hotspot on",
+    "inactive": "Hotspot off"
+  },
   "settings": {
     "glyph": {
       "label": "Bar glyph"
